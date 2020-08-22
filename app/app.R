@@ -9,8 +9,8 @@ library(pals)
 library(plotly)
 
 #Load list of CpGs
-directory = "F:/ISEAL 2012-2013 and postdoc 2017-2019/Projects/EWAS meta-analysis of age/MetaMeth"
-setwd(directory)
+#directory = "F:/ISEAL 2012-2013 and postdoc 2017-2019/Projects/EWAS meta-analysis of age/MetaMeth"
+#setwd(directory)
 #Load meta-analysis list by CpG
 load("./input_data/ForestplotList")
 #Load all results
