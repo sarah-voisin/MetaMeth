@@ -12,7 +12,7 @@ library(plotly)
 #directory = "F:/ISEAL 2012-2013 and postdoc 2017-2019/Projects/EWAS meta-analysis of age/MetaMeth"
 #setwd(directory)
 #Load meta-analysis list by CpG
-load("./input_data/ForestplotList.rda")
+L <- readRDS("./input_data/ForestplotList.rds")
 #Load all results
 meta_res_robust <- read_tsv("./input_data/MetaAnalysis.txt")
 meta_res_robust <- meta_res_robust %>%
