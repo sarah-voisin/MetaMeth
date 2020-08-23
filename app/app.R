@@ -12,9 +12,9 @@ library(plotly)
 #directory = "F:/ISEAL 2012-2013 and postdoc 2017-2019/Projects/EWAS meta-analysis of age/MetaMeth"
 #setwd(directory)
 #Load meta-analysis list by CpG
-load("./app/input_data/ForestplotList.rda")
+load("./input_data/ForestplotList.rda")
 #Load all results
-meta_res_robust <- read_tsv("./app/input_data/MetaAnalysis.txt")
+meta_res_robust <- read_tsv("./input_data/MetaAnalysis.txt")
 meta_res_robust <- meta_res_robust %>%
     mutate_at(c("Chromosome",
                 "CpG island position",
@@ -32,14 +32,14 @@ DMPs <- meta_res_robust %>%
 tested_cpgs <- meta_res_robust$CpG
 
 #Load DMRs
-DMRs <- read_tsv("./app/input_data/DMRs.txt")
+DMRs <- read_tsv("./input_data/DMRs.txt")
 DMRs <- DMRs %>%
     mutate(Chromosome = as.factor(Chromosome)) %>%
     mutate_at(vars(`Maximum effect size in DMR (M-value change per year of age)`:
                        `Fisher multiple comparison statistic`), signif,digits = 3)
 
 library(readxl)
-waffle_data <- read_excel('./app/input_data/Wafflechart.xlsx',
+waffle_data <- read_excel('./input_data/Wafflechart.xlsx',
                           sheet = "Database")
 waffle_data_sum <- tibble(Dataset_ID = "Meta-analysis",
                           n = sum(waffle_data$n))
@@ -82,7 +82,7 @@ mytheme_classic <- function (base_size = 11, base_family = "", base_line_size = 
 }
 
 #Load correspondence mRNA protein
-Table1 <- read_tsv("./app/input_data/mRNA_prot.txt")
+Table1 <- read_tsv("./input_data/mRNA_prot.txt")
 mRNA_prot_graph <- ggplot(data = Table1,
                           mapping = aes(x = `Change in mRNA level per year of age (Su et al. 2015)`,
                                         y = `Change in protein level per year of age (Ubaida-Mohien et al. 2019)`,
