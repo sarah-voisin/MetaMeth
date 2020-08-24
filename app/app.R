@@ -9,10 +9,9 @@ library(pals)
 library(plotly)
 
 #Load list of CpGs
-#directory = "F:/ISEAL 2012-2013 and postdoc 2017-2019/Projects/EWAS meta-analysis of age/MetaMeth"
+#directory = "F:/ISEAL 2012-2013 and postdoc 2017-2019/Projects/EWAS meta-analysis of age/MetaMeth/MetaMeth/app"
 #setwd(directory)
-#Load meta-analysis list by CpG
-L <- readRDS("./input_data/ForestplotList.rds")
+
 #Load all results
 meta_res_robust <- read_tsv("./input_data/MetaAnalysis.txt")
 meta_res_robust <- meta_res_robust %>%
@@ -24,6 +23,9 @@ meta_res_robust <- meta_res_robust %>%
     mutate_at(c("P-value","FDR"), signif, digits = 3) %>%
     select(-c(Significance,Direction)) %>%
     arrange(`P-value`)
+
+#Load meta-analysis list by CpG
+L <- readRDS("./input_data/ForestplotList.rds")
 
 #Create DMPs
 DMPs <- meta_res_robust %>%
@@ -82,12 +84,15 @@ mytheme_classic <- function (base_size = 11, base_family = "", base_line_size = 
 }
 
 #Load correspondence mRNA protein
-Table1 <- read_tsv("./input_data/mRNA_prot.txt")
-mRNA_prot_graph <- ggplot(data = Table1,
+mRNA_prot <- read_tsv("./input_data/mRNA_prot.txt")
+#Change the differential methylation score to a %
+mRNA_prot <- mRNA_prot %>%
+    mutate(`Differential methylation score`=100*signif(`Differential methylation score`,digits=2))
+mRNA_prot_graph <- ggplot(data = mRNA_prot,
                           mapping = aes(x = `Change in mRNA level per year of age (Su et al. 2015)`,
                                         y = `Change in protein level per year of age (Ubaida-Mohien et al. 2019)`,
-                                        size = `Number of DMPs annotated to the gene`,
-                                        color = `Number of DMPs annotated to the gene`)
+                                        size = `Differential methylation score`,
+                                        color = `Differential methylation score`)
 )+
     geom_point(mapping = aes(group=Gene))+
     labs(x = "Change in mRNA level per year of age (Su et al. 2015)",
@@ -110,20 +115,27 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                               tags$h4("Welcome to MetaMeth!"),
                               tags$p(style="text-align: justify;",
                                      "This website allows you to visualise the results of the EWAS meta-analysis of age in human skeletal muscle conducted by Voisin et al."),
-                              tags$br(),tags$p(style="text-align: justify;",
+                              tags$p(style="text-align: justify;",
                                      "Original results are often delivered in a dry, static form that does not engage the reader. Thus, we wanted to create a user-friendly, interactive way to explore the results of our tedious analysis."),
                               tags$h4("How it works"),
-                              tags$p(style="text-align: justify;",
-                                     "If you are interested in a particular",tags$b("CpG,"),"you may go to the Forest plot tab to obtain the summary of the meta-analysis of age for said CpG.
-                                     If you are interested in a particular",tags$b("gene,"),"you may go to the DMP or DMR tab. Then, in the ", tags$em("Annotated gene(s)")," column,  enter the name of said gene to filter the DMPs or DMRs annotated to said gene. You can then download the results in an excel or csv file.
-                                     The DMP and DMR tabs only contain information for those CpGs and regions that were significantly associated with age at FDR < 0.005. For a full list of the tested CpGs, go to the All CpGs tab and filter according to your personal FDR or p-value threshold."),
-                              tags$br(),tags$h4("Contributors"),
-                              tags$b("Code: "),"Sarah Voisin",tags$br(),
+                              tags$ul(
+                                  tags$li(
+                                      tags$p(style="text-align: justify;",
+                                             "If you are interested in a particular",tags$b("CpG,"), "you may go to the", shinyLink(to = "forestplot", label = "forest plot"), "tab to obtain the summary of the meta-analysis of age for said CpG. The DMP and DMR tabs only contain information for those CpGs and regions that were significantly associated with age at FDR < 0.005. For a full list of the tested CpGs, go to the", shinyLink(to = "allCpGs", label = "All CpGs"),"tab and filter according to your personal FDR or p-value threshold.")),
+                                  tags$li(
+                                      tags$p(style="text-align: justify;",
+                                             "If you are interested in a particular",tags$b("gene,"), "you may go to the", shinyLink(to = "DMP", label = "DMP"), "or", shinyLink(to = "DMR", label = "DMR"), "tab. Then, in the ", tags$em("Annotated gene(s)")," column,  enter the name of said gene to filter the DMPs or DMRs annotated to said gene. You can then download the results in an excel or csv file.")),
+                                  tags$li(
+                                      tags$p(style="text-align: justify;",
+                                             "If you are interested in the relationship between age-related DNA methylation changes and age-related mRNA or protein changes, you may go to the",shinyLink(to = "OMICsintegration", label = "OMICs integration"), "tab. We integrated the results of the EWAS meta-analysis of age with the",tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","transcriptome meta-analysis conducted by Su et al. (2015)"),"and the large-scale",tags$a(href="https://elifesciences.org/articles/49874","proteomics study conducted by Ubaida-Mohien et al. (2019).")))),
+                              tags$h4("Contributors"),
+                              tags$b("Code: "),"Sarah Voisin,",tags$a(href="https://github.com/davidruvolo51/shinyAppTutorials/tree/prod/shiny-links","David Ruvolo"),"for the internal links to navigation bars in shiny",tags$br(),
                               tags$b("Server host: "),tags$a(href="https://www.vu.edu.au/", "Victoria University"),tags$br(),
+                              tags$b("Advice: "),tags$a(href="https://staff.ki.se/people/nicpil", "Nicolas Pillon"),tags$br(),
                               tags$b("Feedback: "),"the awesome research team of Genetics & Epigenetics of Exercise at ",tags$a(href=" https://www.vu.edu.au/research/institute-for-health-sport/mechanisms-interventions-in-health-disease", "the Institute for Health and Sport (IHES)"),tags$br(),
                               tags$br(),tags$h4("Citation"),
                               tags$p(style="text-align: justify;",
-                                     "If you use MetaMeth, please cite ",tags$a(href="https://onlinelibrary.wiley.com/doi/full/10.1002/jcsm.12556", "Voisin et al. 2020, JCSM")),tags$br(),
+                                     "If you use MetaMeth, please cite ",tags$a(href="https://onlinelibrary.wiley.com/doi/full/10.1002/jcsm.12556", "Voisin et al. 2020, xxx")),tags$br(),
                               a(actionButton("contact",
                                            label = "Contact",
                                            icon = icon("envelope"),
@@ -134,7 +146,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                            label = "Code",
                                            icon = icon("github"),
                                            width = "80px",
-                                           onclick ="window.open(`https://github.com/sarah-voisin`, '_blank')",
+                                           onclick ="window.open(`https://github.com/sarah-voisin/MetaMeth`, '_blank')",
                                            style="color: #fff; background-color: #767676; border-color: #767676"))),
                           column(4,
                           img(src = "Ecorche_logo.png",
@@ -145,13 +157,11 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                ),
            #2nd tab is to enter CpG
            tabPanel(title = "Forest plot",
+                    value = "forestplot",
                     fluidPage(
                         fluidRow(
                         # Sidebar panel for inputs ----
                         column(2,
-                               #textInput(inputId = "CpG",
-                                         #label = "Please enter your CpG",
-                                         #value = "cg15456742")
                                selectizeInput(inputId = 'CpG',
                                               label = "Please enter your CpG",
                                               choices = NULL,
@@ -173,22 +183,15 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                     ),
            #3rd tab are DMPs
            tabPanel("DMPs",
-                    #sidebarLayout(
-                        # Sidebar panel for inputs ----
-                        #sidebarPanel(width = 2,
-                            # Input: Slider for the number of bins ----
-                            #textInput(inputId = "Gene",
-                                      #label = "Please enter your gene",
-                                      #value = "HDAC4")),
-                        # Main panel for displaying outputs ----
-                        #mainPanel(# Output: summary ----
-                                  #width = 5,
+                    value = "DMP",
+                    #Add code to allow transfer to it
                                   DT::dataTableOutput("DMPs")
                     #)
                    # )
            ),
            #4th tab are DMRs
            tabPanel("DMRs",
+                    value = "DMR",
                     DT::dataTableOutput("DMRs",
                                         width = "70%")
                     ),
@@ -200,11 +203,14 @@ ui <- navbarPage(theme = shinytheme("flatly"),
            #)
            #Last tab is ALL results
            tabPanel("All CpGs",
+                    value = "allCpGs",
                     DT::dataTableOutput("summary")
            ),
            tabPanel("OMICs integration",
+                    value = "OMICsintegration",
                     plotlyOutput(outputId = "mRNAprot",
-                                 width = "500px"))
+                                 width = "500px")),
+           tags$script(src = "shinyLink.js")
 )
 
 
