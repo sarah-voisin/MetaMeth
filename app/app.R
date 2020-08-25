@@ -8,7 +8,6 @@ library(rintrojs)
 library(pals)
 library(plotly)
 
-#Load list of CpGs
 #directory = "F:/ISEAL 2012-2013 and postdoc 2017-2019/Projects/EWAS meta-analysis of age/MetaMeth/MetaMeth/app"
 #setwd(directory)
 
@@ -20,8 +19,6 @@ meta_res_robust <- meta_res_robust %>%
                 "Chromatin state in male skeletal muscle",
                 "Chromatin state in female skeletal muscle"),
               as.factor) %>%
-    mutate_at(c("P-value","FDR"), signif, digits = 3) %>%
-    select(-c(Significance,Direction)) %>%
     arrange(`P-value`)
 
 #Load meta-analysis list by CpG
@@ -107,7 +104,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                collapsible = TRUE,
                "MetaMeth",
                
-               #1st tab is going to be "About" to explain the page
+               #Home page with tutorial, acknowledgment, citation, link to code and contact
                tabPanel(icon("home"),
                         fluidRow(
                             column(7,
@@ -117,7 +114,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                      "This website allows you to visualise the results of the EWAS meta-analysis of age in human skeletal muscle conducted by Voisin et al."),
                               tags$p(style="text-align: justify;",
                                      "Original results are often delivered in a dry, static form that does not engage the reader. Thus, we wanted to create a user-friendly, interactive way to explore the results of our tedious analysis."),
-                              tags$h4("How it works"),
+                              tags$br(),tags$h4("How it works"),
                               tags$ul(
                                   tags$li(
                                       tags$p(style="text-align: justify;",
@@ -128,7 +125,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                   tags$li(
                                       tags$p(style="text-align: justify;",
                                              "If you are interested in the relationship between age-related DNA methylation changes and age-related mRNA or protein changes, you may go to the",shinyLink(to = "OMICsintegration", label = "OMICs integration"), "tab. We integrated the results of the EWAS meta-analysis of age with the",tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","transcriptome meta-analysis conducted by Su et al. (2015)"),"and the large-scale",tags$a(href="https://elifesciences.org/articles/49874","proteomics study conducted by Ubaida-Mohien et al. (2019).")))),
-                              tags$h4("Contributors"),
+                              tags$br(),tags$h4("Contributors"),
                               tags$b("Code: "),"Sarah Voisin,",tags$a(href="https://github.com/davidruvolo51/shinyAppTutorials/tree/prod/shiny-links","David Ruvolo"),"for the internal links to navigation bars in shiny",tags$br(),
                               tags$b("Server host: "),tags$a(href="https://www.vu.edu.au/", "Victoria University"),tags$br(),
                               tags$b("Advice: "),tags$a(href="https://staff.ki.se/people/nicpil", "Nicolas Pillon"),tags$br(),
@@ -155,12 +152,14 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                           )
                         )
                ),
-           #2nd tab is to enter CpG
+               
+           #Forest plot (i.e. summary of effect size and error for each individual study) with user-input CpG name
            tabPanel(title = "Forest plot",
                     value = "forestplot",
                     fluidPage(
                         fluidRow(
-                        # Sidebar panel for inputs ----
+                            
+                        #Sidebar panel for CpG input
                         column(2,
                                selectizeInput(inputId = 'CpG',
                                               label = "Please enter your CpG",
@@ -181,35 +180,34 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                         )
                         )
                     ),
-           #3rd tab are DMPs
+           
+           #Differentially methylated positions (DMPs)
            tabPanel("DMPs",
                     value = "DMP",
-                    #Add code to allow transfer to it
-                                  DT::dataTableOutput("DMPs")
-                    #)
-                   # )
-           ),
-           #4th tab are DMRs
+                    DT::dataTableOutput("DMPs")
+                    ),
+           
+           #Differentially methylated regions (DMRs)
            tabPanel("DMRs",
                     value = "DMR",
                     DT::dataTableOutput("DMRs",
                                         width = "70%")
                     ),
-           #5th tab is OMICs integration
-           #tabPanel("OMICs integration",
-                    #plotOutput(outputId = "volcanoPlot",
-                              # brush = "volcanoselect"),
-                    #verbatimTextOutput("CpGinfo")
-           #)
-           #Last tab is ALL results
+           
+           #Summary results for ALL CpGs to allow users to filter according to their own thresholds
            tabPanel("All CpGs",
                     value = "allCpGs",
                     DT::dataTableOutput("summary")
-           ),
+                    ),
+           
+           #OMICs integration (transcriptomics and proteomics) as a scatterplot
            tabPanel("OMICs integration",
                     value = "OMICsintegration",
                     plotlyOutput(outputId = "mRNAprot",
-                                 width = "500px")),
+                                 width = "500px")
+                    ),
+           
+           #Load javascript to create shinyLinks
            tags$script(src = "shinyLink.js")
 )
 
@@ -259,10 +257,6 @@ server <- function(input, output, session) {
         tib <- L[[input$CpG]]
         
         #Add n and factor each Study to order properly
-        tib <- tib %>%
-            mutate_if(is.numeric,
-                      signif,
-                      digits = 2)
         tib <- inner_join(tib,
                           waffle_data) %>%
             mutate(n = replace(n,
