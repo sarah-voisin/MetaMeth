@@ -8,9 +8,6 @@ library(rintrojs)
 library(pals)
 library(plotly)
 
-#directory = "F:/ISEAL 2012-2013 and postdoc 2017-2019/Projects/EWAS meta-analysis of age/MetaMeth/MetaMeth/app"
-#setwd(directory)
-
 #Load all results
 meta_res_robust <- read_tsv("./input_data/MetaAnalysis.txt")
 meta_res_robust <- meta_res_robust %>%
@@ -37,6 +34,7 @@ DMRs <- DMRs %>%
     mutate_at(vars(`Maximum effect size in DMR (M-value change per year of age)`:
                        `Fisher multiple comparison statistic`), signif,digits = 3)
 
+#Load info on each dataset
 library(readxl)
 waffle_data <- read_excel('./input_data/Wafflechart.xlsx',
                           sheet = "Database")
@@ -82,7 +80,6 @@ mytheme_classic <- function (base_size = 11, base_family = "", base_line_size = 
 
 #Load correspondence mRNA protein
 mRNA_prot <- read_tsv("./input_data/mRNA_prot.txt")
-#Change the differential methylation score to a %
 mRNA_prot <- mRNA_prot %>%
     mutate(`Differential methylation score`=100*signif(`Differential methylation score`,digits=2))
 mRNA_prot_graph <- ggplot(data = mRNA_prot,
@@ -127,7 +124,6 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                              "If you are interested in the relationship between age-related DNA methylation changes and age-related mRNA or protein changes, you may go to the",shinyLink(to = "OMICsintegration", label = "OMICs integration"), "tab. We integrated the results of the EWAS meta-analysis of age with the",tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","transcriptome meta-analysis conducted by Su et al. (2015)"),"and the large-scale",tags$a(href="https://elifesciences.org/articles/49874","proteomics study conducted by Ubaida-Mohien et al. (2019).")))),
                               tags$br(),tags$h4("Contributors"),
                               tags$b("Code: "),"Sarah Voisin,",tags$a(href="https://github.com/davidruvolo51/shinyAppTutorials/tree/prod/shiny-links","David Ruvolo"),"for the internal links to navigation bars in shiny",tags$br(),
-                              tags$b("Server host: "),tags$a(href="https://www.vu.edu.au/", "Victoria University"),tags$br(),
                               tags$b("Advice: "),tags$a(href="https://staff.ki.se/people/nicpil", "Nicolas Pillon"),tags$br(),
                               tags$b("Feedback: "),"the awesome research team of Genetics & Epigenetics of Exercise at ",tags$a(href=" https://www.vu.edu.au/research/institute-for-health-sport/mechanisms-interventions-in-health-disease", "the Institute for Health and Sport (IHES)",tags$br())
                               )
@@ -411,6 +407,4 @@ server <- function(input, output, session) {
 
 shinyApp(ui = ui,
          server = server)
-
-
 
