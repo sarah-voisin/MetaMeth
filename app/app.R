@@ -18,14 +18,15 @@ meta_res_robust <- meta_res_robust %>%
               as.factor) %>%
     arrange(`P-value`)
 
+#Obtain list of tested CpGs
+tested_cpgs <- meta_res_robust$CpG
+
 #Load meta-analysis list by CpG
 L <- readRDS("./input_data/ForestplotList.rds")
 
-#Create DMPs
+#Obtain DMPs
 DMPs <- meta_res_robust %>%
     filter(FDR < 0.005)
-
-tested_cpgs <- meta_res_robust$CpG
 
 #Load DMRs
 DMRs <- read_tsv("./input_data/DMRs.txt")
@@ -55,7 +56,7 @@ levels = c("Study",
            "GSE49908",
            "GSE50498",
            "GSE114763",
-           "Thomis",
+           "EPIK",
            "GSE38291",
            "Meta-analysis")
 
@@ -80,15 +81,13 @@ mytheme_classic <- function (base_size = 11, base_family = "", base_line_size = 
 
 #Load correspondence mRNA protein
 mRNA_prot <- read_tsv("./input_data/mRNA_prot.txt")
-mRNA_prot <- mRNA_prot %>%
-    mutate(`Differential methylation score`=100*signif(`Differential methylation score`,digits=2))
 mRNA_prot_graph <- ggplot(data = mRNA_prot,
                           mapping = aes(x = `Change in mRNA level per year of age (Su et al. 2015)`,
                                         y = `Change in protein level per year of age (Ubaida-Mohien et al. 2019)`,
-                                        size = `Differential methylation score`,
-                                        color = `Differential methylation score`)
+                                        color = `Number of DMRs annotated to the gene`)
 )+
-    geom_point(mapping = aes(group=Gene))+
+    geom_point(mapping = aes(group=Gene),
+               size = 4)+
     labs(x = "Change in mRNA level per year of age (Su et al. 2015)",
          y = "Change in protein level per year of age\n(Ubaida-Mohien et al. 2019)")+
     geom_hline(yintercept=0)+
@@ -175,7 +174,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                          # brush = "volcanoselect"),
                                #verbatimTextOutput("CpGinfo")),
                         # Forest plot ----
-                        column(8,
+                        column(10,
                                # Output: Forest Plot ----
                                   plotOutput(outputId = "forestPlot",
                                              height = "800px"))
@@ -203,10 +202,24 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                     ),
            
            #OMICs integration (transcriptomics and proteomics) as a scatterplot
-           tabPanel("OMICs integration",
+           tabPanel(title = "OMICs integration",
                     value = "OMICsintegration",
-                    plotlyOutput(outputId = "mRNAprot",
-                                 width = "500px")
+                    fluidPage(
+                        fluidRow(
+                            column(5,
+                                   plotlyOutput(outputId = "mRNAprot",
+                                                width = "500px")
+                            ),
+                            column(5,
+                                   tags$div(
+                                       tags$h4("How the graph works"),
+                                       tags$p(style="text-align: justify;",
+                                              "This is a scatterplot showing the change in mRNA (x-axis) and protein (y-axis) for the 122 genes altered at all three omics levels. The epigenomic analysis was conducted by",tags$a(href="https://onlinelibrary.wiley.com/doi/full/10.1002/jcsm.12556","Voisin et al. (2020)"), ", the transcriptomic analysis was conducted by", tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","Su et al. (2015)"),"and the proteomics analysis was conducted by",tags$a(href="https://elifesciences.org/articles/49874","Ubaida-Mohien et al. (2019)."), "Each gene was colored according to the number of DMRs annotated to it, from 1-3 DMRs for most genes all the way up to 21 DMRs. Naturally, longer genes (e.g.",tags$em("NXN, ABLIM2)"),"have a greater propensity to have more DMRs given their high numbers of CpGs.")
+                                   )
+                                       
+                            )
+                        )
+                    )
                     ),
            
            #Load javascript to create shinyLinks
@@ -258,11 +271,12 @@ server <- function(input, output, session) {
         #tib <- L[[CpG_forest]]
         tib <- L[[input$CpG]]
         
+        
         #Add n and factor each Study to order properly
         tib <- inner_join(tib,
                           waffle_data) %>%
             mutate(n = replace(n,
-                               n==889,
+                               n==908,
                                sum(n[Study!="Meta-analysis"])))
         #Add lines of empty cells for missing datasets + one extra for title
         missing_datasets = setdiff(levels,tib$Study)
@@ -310,10 +324,12 @@ server <- function(input, output, session) {
             dplyr::select(Study,
                           n,
                           ES,
+                          PVAL,
                           FDR) %>%
             mutate_all(as.character)
         SummaryTable$n[SummaryTable$Study=="Study"] = "Sample size"
         SummaryTable$ES[SummaryTable$Study=="Study"] = "Effect size"
+        SummaryTable$PVAL[SummaryTable$Study=="Study"] = "P-value"
         SummaryTable$FDR[SummaryTable$Study=="Study"] = "FDR"
         
         SummaryTable <- SummaryTable %>%
@@ -325,6 +341,7 @@ server <- function(input, output, session) {
                                      levels = c("Study",
                                                 "n",
                                                 "ES",
+                                                "PVAL",
                                                 "FDR")))
         
         #Create table plot
@@ -351,11 +368,10 @@ server <- function(input, output, session) {
     #Create forest plot
     grid.arrange(data_table,
                  plot3,
-                 widths = c(1.5, 1),
+                 widths = c(2, 1.25),
                  heights = c(1,1),
                  ncol=2)
     })
-    
     
     output$DMPs <- DT::renderDataTable({
         DT::datatable(DMPs,
