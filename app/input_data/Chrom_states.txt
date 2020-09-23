@@ -1,0 +1,16 @@
+STATE NO.	MNEMONIC	DESCRIPTION	CATEGORY	COLOR NAME	RED	GREEN	BLUE
+1	TssA	Active TSS	TSS	Red	255	0	0
+2	TssAFlnk	Flanking Active TSS	TSS	Orange Red	255	69	0
+3	TxFlnk	Transcr. at gene 5' and 3'	Tx	LimeGreen	50	205	50
+4	Tx	Strong transcription	Tx	Green	0	128	0
+5	TxWk	Weak transcription	Tx	DarkGreen	0	100	0
+6	EnhG	Genic enhancers	Enh	GreenYellow	194	225	5
+7	Enh	Enhancers	Enh	Yellow	255	255	0
+8	ZNF/Rpts	ZNF genes & repeats	ZNF	Medium Aquamarine	102	205	170
+9	Het	Heterochromatin	Het	PaleTurquoise	138	145	208
+10	TssBiv	Bivalent/Poised TSS	TSS	IndianRed	205	92	92
+11	BivFlnk	Flanking Bivalent TSS/Enh	TSS;Enh	DarkSalmon	233	150	122
+12	EnhBiv	Bivalent Enhancer	Enh	DarkKhaki	189	183	107
+13	ReprPC	Repressed PolyComb	PC	Silver	128	128	128
+14	ReprPCWk	Weak Repressed PolyComb	PC	Gainsboro	192	192	192
+15	Quies	Quiescent/Low	Quies	White	255	255	255
