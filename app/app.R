@@ -18,8 +18,12 @@ meta_res_robust <- meta_res_robust %>%
               as.factor) %>%
     arrange(`P-value`)
 
-#Obtain list of tested CpGs
-tested_cpgs <- meta_res_robust$CpG
+#Obtain list of possible CpGs
+possible_cpgs <- meta_res_robust$CpG
+
+#Obtain list of possible genes
+possible_genes <- unique(unlist(strsplit(meta_res_robust$`Annotated gene(s)`,split=";")))
+possible_genes = possible_genes[!is.na(possible_genes)]
 
 #Load meta-analysis list by CpG
 L <- readRDS("./input_data/ForestplotList.rds")
@@ -65,6 +69,9 @@ levels = c("Study",
            "GSE38291",
            "Meta-analysis")
 
+#Load chromatin states
+chromHMM <- read.delim("./input_data/Chrom_states.txt")
+
 #Create my own theme based on theme_bw but without legend
 mytheme_classic <- function (base_size = 11, base_family = "", base_line_size = base_size/22, 
                              base_rect_size = base_size/22) 
@@ -99,7 +106,6 @@ mRNA_prot_graph <- ggplot(data = mRNA_prot,
     geom_vline(xintercept=0)+
     mytheme_classic()
 
-
 #################SHINY APP################################
 ui <- navbarPage(theme = shinytheme("flatly"),
                collapsible = TRUE,
@@ -110,7 +116,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                         fluidRow(
                             column(7,
                           tags$div(
-                              "Last update:",Sys.Date(),tags$br(),
+                              "Last update: 23/09/2020",tags$br(),
                               tags$h4("Welcome to MetaMeth!"),
                               tags$p(style="text-align: justify;",
                                      "This website allows you to visualise the results of the DNA methylation EWAS meta-analysis of age in human skeletal muscle conducted by Voisin et al."),
@@ -160,25 +166,103 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                
            #Forest plot (i.e. summary of effect size and error for each individual study) with user-input CpG name
            tabPanel(title = "Forest plot",
+                    fluid = TRUE,
+                    icon = icon("tree"),
                     value = "forestplot",
-                    fluidPage(
-                        fluidRow(
+                    tags$style("
+                    body {
+                    -moz-transform: scale(0.8, 0.8); /* Moz-browsers */
+                    zoom: 0.8; /* Other non-webkit browsers */
+                    zoom: 80%; /* Webkit browsers */
+                    }
+                               "),
+                    # Sidebar layout with a input and output definitions
+                    sidebarLayout(
+                        sidebarPanel(
+                            titlePanel("Select a CpG to plot"),
+                            #First row is CpG name
+                            selectizeInput(inputId = 'CpG',
+                                           label = "List of possible CpGs",
+                                           choices = NULL),
+                            hr(),
+                            #Second row is filtering characteristics like gene, chromatin state, CGI position, etc.
+                            titlePanel("Filter list of CpGs based on genomic context"),
+                            fluidRow(column(3,
+                                            #Select chromosome
+                                            selectInput(inputId = "chr",
+                                                        label = "Chromosome",
+                                                        choices = c("",
+                                                                    paste0("chr",c(1:22,"X","Y"))),
+                                                        selected = "")
+                                            ),
+                                     #Select position
+                                     column(4,offset = 1,
+                                            numericInput(inputId = "pos_beg",
+                                                         label = "From (hg38)",
+                                                         min = -Inf,
+                                                         max = Inf,
+                                                         value = -Inf)
+                                            ),
+                                     column(4,
+                                            numericInput(inputId = "pos_end",
+                                                         label = "To (hg38)",
+                                                         min = -Inf,
+                                                         max = Inf,
+                                                         value = Inf)
+                                            )
+                                     ),
+                            #Select gene
+                            selectizeInput(inputId = 'gene',
+                                           label = "Gene",
+                                           choices = NULL),
                             
-                        #Sidebar panel for CpG input
-                        column(2,
-                               wellPanel(
-                                   selectizeInput(inputId = 'CpG',
-                                              label = "Please enter your CpG",
-                                              choices = NULL,
-                                              selected = "cg00702638"),
-                               tags$br(),tags$h4("Download forest plot"),
+                            #Select position with respect to CpG islands and CTCF and EZH2 binding sites
+                            fluidRow(column(5,
+                                            checkboxGroupInput(inputId = "CGI",
+                                                               label = "CpG island position",
+                                                               choices = c("Island","Shore","Shelf","Open sea"),
+                                                               selected = c("Island","Shore","Shelf","Open sea")),
+                                            actionLink("unselectall_CGI","Unselect All")
+                                            ),
+                                     column(5, offset = 1,
+                                            #Select position with respect to CTCF binding site
+                                            checkboxGroupInput(inputId = "CTCF",
+                                                               label = "In CTCF binding site",
+                                                               choices = c("No","Yes"),
+                                                               selected = c("No","Yes")),
+                                            #Select position with respect to EZH2 binding site
+                                            checkboxGroupInput(inputId = "EZH2",
+                                                               label = "In EZH2 binding site",
+                                                               choices = c("No","Yes"),
+                                                               selected = c("No","Yes"))
+                                            )
+                                     ),
+                            #Chromatin states
+                            fluidRow(column(5,
+                                            #Male
+                                            checkboxGroupInput(inputId = "chrom_state_M",
+                                                               label = "Chromatin state in male skeletal muscle",
+                                                               choices = chromHMM$DESCRIPTION,
+                                                               selected = chromHMM$DESCRIPTION),
+                                            actionLink("unselectall_chromstate_M","Unselect All")
+                                            ),
+                                     column(5,offset=1,
+                                            #Female
+                                            checkboxGroupInput(inputId = "chrom_state_F",
+                                                               label = "Chromatin state in female skeletal muscle",
+                                                               choices = chromHMM$DESCRIPTION,
+                                                               selected = chromHMM$DESCRIPTION),
+                                            actionLink("unselectall_chromstate_F","Unselect All")
+                                            )
+                                     ),
+                               tags$hr(),
+                               titlePanel("Download forest plot"),
                                numericInput(inputId = "FPresolution",
                                             label = "Image resolution (ppi)",
                                             value = 72,
                                             min = 50,
                                             max = 600),
-                               tags$p(style="text-align: justify;",
-                                      "As an indication, 72 ppi is standard and 300 ppi is high-quality."),
+                               helpText("As an indication, 72 ppi is standard and 300 ppi is high-quality."),
                                selectInput(inputId = "filetype",
                                             label = "File type",
                                             choices = c("jpg",
@@ -187,23 +271,20 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                             selected = "tif"),
                                downloadButton("downloadFP",
                                               "Download")
-                               )
                             ),
+                    mainPanel(
                         # Forest plot ----
-                        column(10,
-                               # Output: Forest Plot ----
-                                  plotOutput(outputId = "forestPlot",
-                                             height = "400px"),
-                                   tags$h4("Legend"),
-                                   tags$p(style="text-align: justify;",
-                                          "The meta-analysis combined results from 10 independent datasets assayed with the HumanMethylation array (27k, 450k or EPIC). Therefore, CpGs were present in some, but not all of the included studies. We limited the meta-analysis to CpGs that were present in at least 6 of the 10 studies. Studies that were missing the input CpG are displayed as NA on the forest plot.")
-                        )
+                        plotOutput(outputId = "forestPlot",
+                                   height = "400px"),
+                        hr(),
+                        helpText("The meta-analysis combined results from 10 independent datasets assayed with the HumanMethylation array (27k, 450k or EPIC). Therefore, CpGs were present in some, but not all of the included studies. We limited the meta-analysis to CpGs that were present in at least 6 of the 10 studies. Studies with missing information (NA) mean that this CpG was not analysed in the dataset.")
                         )
                     )
-                    ),
+           ),
            
            #Summary Tables
            tabPanel("Summary tables",
+                    icon = icon("table"),
                     value = "summarytables",
                     selectInput(inputId = 'tabletype',
                                 label = "Please choose the table to display",
@@ -217,6 +298,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
            #OMICs integration (transcriptomics and proteomics) as a scatterplot
            tabPanel(title = "OMICs integration",
                     value = "OMICsintegration",
+                    icon = icon("object-group"),
                     fluidPage(
                         fluidRow(
                             column(5,
@@ -227,7 +309,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                    tags$div(
                                        tags$h4("How the graph works"),
                                        tags$p(style="text-align: justify;",
-                                              "This is a scatterplot showing the change in mRNA (x-axis) and protein (y-axis) for the 59 genes altered at all three omics levels. The epigenomic analysis was conducted by",tags$a(href="https://onlinelibrary.wiley.com/doi/full/10.1002/jcsm.12556","Voisin et al. (2020)"), ", the transcriptomic analysis was conducted by", tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","Su et al. (2015)"),"and the proteomics analysis was conducted by",tags$a(href="https://elifesciences.org/articles/49874","Ubaida-Mohien et al. (2019)."), "Each gene was colored according to the number of DMRs annotated to it, from 1-3 DMRs for most genes all the way up to 12 DMRs. Naturally, longer genes (e.g.",tags$em("NXN, ABLIM2)"),"have a greater propensity to have more DMRs given their high numbers of CpGs.")
+                                              "This is a scatterplot showing the change in mRNA (x-axis) and protein (y-axis) for the 71 genes altered at all three omics levels. The epigenomic analysis was conducted by",tags$a(href="https://onlinelibrary.wiley.com/doi/full/10.1002/jcsm.12556","Voisin et al. (2020)"), ", the transcriptomic analysis was conducted by", tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","Su et al. (2015)"),"and the proteomics analysis was conducted by",tags$a(href="https://elifesciences.org/articles/49874","Ubaida-Mohien et al. (2019)."), "Each gene was colored according to the number of DMRs annotated to it, from 1-3 DMRs for most genes all the way up to 12 DMRs. Naturally, longer genes (e.g.",tags$em("NXN, ABLIM2)"),"have a greater propensity to have more DMRs given their high numbers of CpGs.")
                                    )
                                        
                             )
@@ -275,19 +357,52 @@ server <- function(input, output, session) {
     #    re-executed when inputs (input$CpG) change
     # 2. Its output type is a plot
     
+    updateSelectizeInput(session,
+                         'gene',
+                         choices = c("All",possible_genes),
+                         selected = "All",
+                         server = TRUE)
 
+    possible_cpgs <- reactive({
+        #req(input$chr)
+        #req(input$pos_beg)
+        #req(input$pos_end)
+        req(input$gene)
+        #req(input$CGI)
+        #req(input$CTCF)
+        #req(input$EZH2)
+        #req(input$chrom_state_M)
+        #req(input$chrom_state_F)
+        
+        #if (input$chr=="")
+        #    chrtolookfor <- paste0("chr",c(1:22,"X","Y"))
+        if (input$gene=="All")
+            pull(meta_res_robust[,"CpG"])
+        else
+            {
+            genetolookfor <- paste0("\\b",input$gene,"\\b")
+            index <- grep(genetolookfor,
+                          meta_res_robust$`Annotated gene(s)`)
+            pull(meta_res_robust[index,"CpG"])
+            }
+    })
+    
+    observeEvent(possible_cpgs(),
+        {
         updateSelectizeInput(session,
                              'CpG',
-                             choices = tested_cpgs,
+                             choices = c("",possible_cpgs()),
+                             selected = "",
                              server = TRUE)
-
- 
+        })
     
+
     #Render the forestplot in the right tab
     output$forestPlot <- renderPlot({
         
         validate(
-            need(input$CpG, 'The forest plot will appear as soon as you supply a valid CpG name')
+            need(input$CpG,
+                 'The forest plot will appear as soon as you supply a valid CpG name')
         )
     
         
@@ -547,7 +662,7 @@ server <- function(input, output, session) {
                       extensions = 'Buttons',
                       options = list(
                           dom = 'lBtip',
-                          lengthMenu = c(10, 25, 50, nrow(L[[input$tabletype]])),
+                          lengthMenu = c(10, 25, 50, nrow(L_summarytables[[input$tabletype]])),
                           buttons = c('copy', 'csv', 'excel')
                       ),
                       rownames = FALSE,
