@@ -18,9 +18,6 @@ meta_res_robust <- meta_res_robust %>%
               as.factor) %>%
     arrange(`P-value`)
 
-#Obtain list of possible CpGs
-possible_cpgs <- meta_res_robust$CpG
-
 #Obtain list of possible genes
 possible_genes <- unique(unlist(strsplit(meta_res_robust$`Annotated gene(s)`,split=";")))
 possible_genes = possible_genes[!is.na(possible_genes)]
@@ -33,8 +30,11 @@ DMPs <- meta_res_robust %>%
     filter(FDR < 0.005)
 
 #Load DMRs
-DMRs <- read_tsv("./input_data/DMRs.txt")
+DMRs <- readRDS("./input_data/DMRs.rds")
+#List of CpGs in DMRs
+CpGs_in_DMRs <- DMRs$`CpGs in DMR`
 DMRs <- DMRs %>%
+    select(-`CpGs in DMR`) %>%
     mutate(Chromosome = as.factor(Chromosome)) %>%
     mutate_at(vars(`Maximum effect size in DMR`:
                        `Fisher multiple comparison statistic`), signif,digits = 3)
@@ -96,27 +96,44 @@ mRNA_prot <- read_tsv("./input_data/mRNA_prot.txt")
 mRNA_prot_graph <- ggplot(data = mRNA_prot,
                           mapping = aes(x = `Change in mRNA level per year of age (Su et al. 2015)`,
                                         y = `Change in protein level per year of age (Ubaida-Mohien et al. 2019)`,
-                                        color = `Number of DMRs annotated to the gene`)
-)+
+                                        color = `Number of DMRs annotated to the gene`))+
     geom_point(mapping = aes(group=Gene),
                size = 4)+
+    scale_color_gradient2(low = "white",
+                         mid = "blue",
+                         high = "red")+
     labs(x = "Change in mRNA level per year of age (Su et al. 2015)",
          y = "Change in protein level per year of age\n(Ubaida-Mohien et al. 2019)")+
     geom_hline(yintercept=0)+
     geom_vline(xintercept=0)+
     mytheme_classic()
 
+# a call creating input buttons:
+shinyInput <- function(FUN, len, id, ...) {
+    inputs <- character(len)
+    for (i in seq_len(len)) {
+        inputs[i] <- as.character(FUN(paste0(id, i), ...))
+    }
+    inputs
+}
+
+subsetModal <- function(session, CpGs, size) {
+    ns <- session$ns
+    showModal(modalDialog({
+        renderTable(ns(CpGs))
+    }, size = size))
+}
 #################SHINY APP################################
 ui <- navbarPage(theme = shinytheme("flatly"),
                collapsible = TRUE,
-               "MetaMeth",
-               
+               title = "MetaMeth",
+               id = "tabs",
                #Home page with tutorial, acknowledgment, citation, link to code and contact
                tabPanel(icon("home"),
                         fluidRow(
                             column(7,
                           tags$div(
-                              "Last update: 23/09/2020",tags$br(),
+                              "Last update: 28/09/2020",tags$br(),
                               tags$h4("Welcome to MetaMeth!"),
                               tags$p(style="text-align: justify;",
                                      "This website allows you to visualise the results of the DNA methylation EWAS meta-analysis of age in human skeletal muscle conducted by Voisin et al."),
@@ -124,17 +141,22 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                               tags$ul(
                                   tags$li(
                                       tags$p(style="text-align: justify;",
-                                             "If you are interested in a particular",tags$b("CpG,"), "you may go to the", shinyLink(to = "forestplot", label = "forest plot"), "tab to obtain the summary of the meta-analysis of age for said CpG. To obtain additional information on a given CpG (e.g. chromatin states, heterogeneity index), you may instead go to the", shinyLink(to = "summarytables", label = "Summary tables"), "tab. The",shinyLink(to = "summarytables", label = "Summary tables"),"tab contains three tables: the differentially methylated positions (DMPs) and differentially methylated regions (DMRs) associated with age at FDR < 0.005, as well as all tested CpGs so you can filter according to your personal FDR or p-value threshold.")),
+                                             "If you are interested in a particular",tags$strong("CpG,"), "you may go to the", shinyLink(to = "forestplot", label = "Forest plot"), "tab to obtain a",tags$em("graph"),"summarising all studies on this CpG. To obtain all",tags$em("information"),"on a given CpG (i.e. genomic context and statistics), you may instead go to the", shinyLink(to = "summarytables", label = "Summary tables"), "tab. The",shinyLink(to = "summarytables", label = "Summary tables"),"tab contains three tables: the differentially methylated positions (DMPs) and differentially methylated regions (DMRs) associated with age at a false discovery rate (FDR) < 0.005, as well as all tested CpGs so you can filter according to your own FDR or p-value threshold. Results are downloadable as an excel or csv file.")),
                                   tags$li(
                                       tags$p(style="text-align: justify;",
-                                             "If you are interested in a particular",tags$b("gene,"), "you may go to the", shinyLink(to = "summarytables", label = "Summary tables"), "tab. Then, in the ", tags$em("Annotated gene(s)")," column,  enter the name of said gene to filter the DMPs or DMRs annotated to said gene. You can then download the results in an excel or csv file.")),
+                                             "If you are interested in a particular",tags$strong("gene,"), "you may go to the", shinyLink(to = "forestplot", label = "Forest plot"),"or",shinyLink(to = "summarytables", label = "Summary tables"), "tabs. Then, in the", tags$em("Annotated gene(s)"),"box or column,  enter the name of the gene to filter the CpGs, DMPs or DMRs annotated to the gene. If you are in the",shinyLink(to = "forestplot", label = "Forest plot"),"tab, you can then select which CpG to display. Alternatively, if you are in the",shinyLink(to = "summarytables", label = "Summary tables"),"tab, you can download all results pertaining to this gene as a csv or excel file.")),
+                                      tags$li(
+                                          tags$p(style="text-align: justify;",
+                                                 "If you are interested in a particular",tags$strong("genomic region,"), "you may go to the", shinyLink(to = "forestplot", label = "Forest plot"),"or",shinyLink(to = "summarytables", label = "Summary tables"), "tabs. Then, enter the", tags$em("chromosome, position"),"in hg38 coordinates to filter the CpGs, DMPs or DMRs located within the given region. If you are in the",shinyLink(to = "forestplot", label = "Forest plot"),"tab, you can then select which CpG to display. Alternatively, if you are in the",shinyLink(to = "summarytables", label = "Summary tables"),"tab, you can download all results within this genomic region as a csv or excel file.")),    
                                   tags$li(
                                       tags$p(style="text-align: justify;",
                                              "If you are interested in the relationship between age-related DNA methylation changes and age-related mRNA or protein changes, you may go to the",shinyLink(to = "OMICsintegration", label = "OMICs integration"), "tab. We integrated the results of the EWAS meta-analysis of age with the",tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","transcriptome meta-analysis conducted by Su et al. (2015)"),"and the large-scale",tags$a(href="https://elifesciences.org/articles/49874","proteomics study conducted by Ubaida-Mohien et al. (2019).")))),
+                              tags$p(style="text-align: justify;",
+                                     tags$div("Note: We are currently working on expanding the OMICS integration tab and adding a pathway enrichment tab. Coming soon!", style = "color:blue")),
                               tags$br(),tags$h4("Contributors"),
-                              tags$b("Code: "),tags$a(href="https://www.vu.edu.au/research/sarah-voisin","Sarah Voisin,"),tags$a(href="https://github.com/davidruvolo51/","David Ruvolo"),"for the internal links to navigation bars in shiny",tags$br(),
+                              tags$b("Code: "),tags$a(href="https://www.vu.edu.au/research/sarah-voisin","Sarah Voisin,"),tags$a(href="https://github.com/davidruvolo51/","David Ruvolo"),"for the internal links to navigation bars in shiny, and",tags$a(href="https://github.com/strboul","Metin Yazici"),"for the pop-up windows in the",shinyLink(to = "summarytables", label = "Summary tables."),tags$br(),
                               tags$b("Advice: "),tags$a(href="https://staff.ki.se/people/nicpil", "Nicolas Pillon"),tags$br(),
-                              tags$b("Feedback: "),tags$a(href="https://www.vu.edu.au/research/alba-moreno-asso","Dr Alba Moreno-Asso,"),tags$a(href="https://www.vu.edu.au/research/nir-eynon","A/Prof Nir Eynon"), "and the awesome research team of Genetics & Epigenetics of Exercise at ",tags$a(href=" https://www.vu.edu.au/research/institute-for-health-sport/mechanisms-interventions-in-health-disease", "the Institute for Health and Sport (IHES)",tags$br())
+                              tags$b("Feedback: "),tags$a(href="https://www.deakin.edu.au/about-deakin/people/mark-ziemann","Dr Mark Ziemann, "),tags$a(href="https://www.vu.edu.au/research/alba-moreno-asso","Dr Alba Moreno-Asso,"),"and the awesome research team of Genetics & Epigenetics of Exercise at ",tags$a(href=" https://www.vu.edu.au/research/institute-for-health-sport/mechanisms-interventions-in-health-disease", "the Institute for Health and Sport (IHES)",tags$br())
                               )
                           ),
                           column(4,
@@ -169,6 +191,12 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                     fluid = TRUE,
                     icon = icon("tree"),
                     value = "forestplot",
+                    tags$head(
+                        tags$style(
+                            HTML(".shiny-output-error-validation
+                                 {font-size: 50px}")
+                            )
+                        ),
                     tags$style("
                     body {
                     -moz-transform: scale(0.8, 0.8); /* Moz-browsers */
@@ -184,9 +212,16 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                             selectizeInput(inputId = 'CpG',
                                            label = "List of possible CpGs",
                                            choices = NULL),
+                            #Number of studies
+                            sliderInput(inputId = "nbstudies",
+                                        label = "Min number of studies",
+                                        value = 6,
+                                        step = 1,
+                                        min = 6,
+                                        max = 10),
                             hr(),
                             #Second row is filtering characteristics like gene, chromatin state, CGI position, etc.
-                            titlePanel("Filter list of CpGs based on genomic context"),
+                            titlePanel("Filter CpGs based on genomic context"),
                             fluidRow(column(3,
                                             #Select chromosome
                                             selectInput(inputId = "chr",
@@ -198,17 +233,19 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                      #Select position
                                      column(4,offset = 1,
                                             numericInput(inputId = "pos_beg",
-                                                         label = "From (hg38)",
-                                                         min = -Inf,
-                                                         max = Inf,
-                                                         value = -Inf)
+                                                         label = "From",
+                                                         min = 0,
+                                                         step = 1,
+                                                         max = 250000000,
+                                                         value = 0)
                                             ),
                                      column(4,
                                             numericInput(inputId = "pos_end",
                                                          label = "To (hg38)",
-                                                         min = -Inf,
-                                                         max = Inf,
-                                                         value = Inf)
+                                                         min = 0,
+                                                         step = 1,
+                                                         max = 250000000,
+                                                         value = 250000000)
                                             )
                                      ),
                             #Select gene
@@ -222,7 +259,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                                                label = "CpG island position",
                                                                choices = c("Island","Shore","Shelf","Open sea"),
                                                                selected = c("Island","Shore","Shelf","Open sea")),
-                                            actionLink("unselectall_CGI","Unselect All")
+                                            actionLink("selectall_CGI","Select/Deselect All")
                                             ),
                                      column(5, offset = 1,
                                             #Select position with respect to CTCF binding site
@@ -244,7 +281,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                                                label = "Chromatin state in male skeletal muscle",
                                                                choices = chromHMM$DESCRIPTION,
                                                                selected = chromHMM$DESCRIPTION),
-                                            actionLink("unselectall_chromstate_M","Unselect All")
+                                            actionLink("selectall_chromstate_M","Select/Deselect All")
                                             ),
                                      column(5,offset=1,
                                             #Female
@@ -252,14 +289,71 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                                                label = "Chromatin state in female skeletal muscle",
                                                                choices = chromHMM$DESCRIPTION,
                                                                selected = chromHMM$DESCRIPTION),
-                                            actionLink("unselectall_chromstate_F","Unselect All")
+                                            actionLink("selectall_chromstate_F","Select/Deselect All")
                                             )
                                      ),
                                tags$hr(),
+                            titlePanel("Filter CpGs based on statistics"),
+                            h4("Effect size (% DNAm change per year of age)"),
+                            fluidRow(column(5,
+                                            #Min effect size
+                                            numericInput(inputId = "minES",
+                                                         label = "Min",
+                                                         value = -0.4,
+                                                         min = -0.4,
+                                                         max = 0.4)
+                                            ),
+                                     column(5,
+                                            #Max effect size
+                                            numericInput(inputId = "maxES",
+                                                         label = "Max",
+                                                         value = 0.4,
+                                                         min = -0.4,
+                                                         max = 0.4)
+                                     )
+                            ),
+                            h4("Significance"),
+                            fluidRow(column(5,
+                                            #Pvalue threshold
+                                            numericInput(inputId = "pval",
+                                                         label = "P-value below",
+                                                         value = 1,
+                                                         min = 1e-70,
+                                                         max = 1)
+                                            ),
+                                     column(5,
+                                            #FDR threshold
+                                            numericInput(inputId = "FDR",
+                                                         label = "FDR below",
+                                                         value = 1,
+                                                         min = 1e-70,
+                                                         max = 1) 
+                                     )
+                                   ),
+                            h4("Heterogeneity between studies"),
+                            fluidRow(column(5,
+                                            #I2
+                                            numericInput(inputId = "I2",
+                                                         label = "Het index (I2) below",
+                                                         value = 100,
+                                                         min = 0,
+                                                         max = 100)
+                                            ),
+                            column(5,
+                                   #I2 p-value
+                                   numericInput(inputId = "I2pval",
+                                                label = "Het p-value below",
+                                                value = 1,
+                                                min = 1e-30,
+                                                max = 1) 
+                            )
+                            ),
+                            tags$hr(),
                                titlePanel("Download forest plot"),
                                numericInput(inputId = "FPresolution",
                                             label = "Image resolution (ppi)",
                                             value = 72,
+                                            step = 1,
                                             min = 50,
                                             max = 600),
                                helpText("As an indication, 72 ppi is standard and 300 ppi is high-quality."),
@@ -277,7 +371,9 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                         plotOutput(outputId = "forestPlot",
                                    height = "400px"),
                         hr(),
-                        helpText("The meta-analysis combined results from 10 independent datasets assayed with the HumanMethylation array (27k, 450k or EPIC). Therefore, CpGs were present in some, but not all of the included studies. We limited the meta-analysis to CpGs that were present in at least 6 of the 10 studies. Studies with missing information (NA) mean that this CpG was not analysed in the dataset.")
+                        helpText(div(style="text-align:justify",
+                                     "The meta-analysis combined results from 10 independent datasets assayed with the HumanMethylation array (27k, 450k or EPIC). Therefore, CpGs were present in some, but not all of the included studies. We limited the meta-analysis to CpGs that were present in at least 6 of the 10 studies. Studies with missing information (NA) mean that this CpG was not analysed in the dataset.")
+                        )
                         )
                     )
            ),
@@ -359,34 +455,82 @@ server <- function(input, output, session) {
     
     updateSelectizeInput(session,
                          'gene',
-                         choices = c("All",possible_genes),
-                         selected = "All",
-                         server = TRUE)
+                         choices = c("",possible_genes),
+                         server = TRUE,
+                         selected = "")
 
     possible_cpgs <- reactive({
-        #req(input$chr)
-        #req(input$pos_beg)
-        #req(input$pos_end)
-        req(input$gene)
-        #req(input$CGI)
-        #req(input$CTCF)
-        #req(input$EZH2)
-        #req(input$chrom_state_M)
-        #req(input$chrom_state_F)
-        
-        #if (input$chr=="")
-        #    chrtolookfor <- paste0("chr",c(1:22,"X","Y"))
-        if (input$gene=="All")
-            pull(meta_res_robust[,"CpG"])
-        else
-            {
+        "1==1"
+        #withProgress(message = 'Updating list of CpGs', value = 0, {
+            
+        #Filter by gene
+        #incProgress(1/9, detail ="Filtering by gene")
+        if (input$gene %in% possible_genes)
+        {
             genetolookfor <- paste0("\\b",input$gene,"\\b")
-            index <- grep(genetolookfor,
+            indexgene <- grep(genetolookfor,
                           meta_res_robust$`Annotated gene(s)`)
-            pull(meta_res_robust[index,"CpG"])
-            }
+        }
+        else
+        {
+            indexgene <- 1:nrow(meta_res_robust)
+        }
+            
+        #Filter by position
+        #incProgress(1/9, detail ="Filtering by position")
+        if (input$chr!="")
+        {
+            indexpos <- which(meta_res_robust$`Chromosome`==input$chr&
+                               meta_res_robust$`Position (hg38)`>=input$pos_beg &
+                               meta_res_robust$`Position (hg38)`<=input$pos_end)   
+        }
+        else
+        {
+            indexpos <- 1:nrow(meta_res_robust)
+        }
+        
+        #Filter by CGI
+            #incProgress(1/9, detail ="Filtering by CGI position")
+            indexCGI <- which(meta_res_robust$`CpG island position` %in% input$CGI)
+            
+        #Filter by CTCF and EZH2 binding sites
+        #incProgress(1/9, detail ="Filtering by TF binding site")
+            indexCTCF <- which(meta_res_robust$`In CTCF binding site in HSMMtube` %in% input$CTCF)    
+            indexEZH2 <- which(meta_res_robust$`In EZH2 binding site in HSMMtube` %in% input$EZH2)    
+ 
+        #Filter by male and female chrom state
+        #incProgress(1/9, detail ="Filtering by chromatin state")
+        indexchromstateM <- which(meta_res_robust$`Chromatin state in male skeletal muscle`%in%input$chrom_state_M)
+        indexchromstateF <- which(meta_res_robust$`Chromatin state in female skeletal muscle`%in%input$chrom_state_F)
+        
+        #Filter by Effect Size, p-value & FDR
+        #incProgress(1/9, detail ="Filtering by statistics")
+        indexstats <- which(meta_res_robust$`Effect size beta`>input$minES&
+                             meta_res_robust$`Effect size beta`<input$maxES&
+                             meta_res_robust$`P-value`<input$pval&
+                             meta_res_robust$FDR<input$FDR&
+                                meta_res_robust$`Heterogeneity index (I2)`<input$I2&
+                                meta_res_robust$`Heterogeneity p-value`<input$I2pval&
+                                meta_res_robust$`Number of studies`>=input$nbstudies)
+            
+        #Obtain intersection
+        #incProgress(1/9, detail ="Loading filtered list of CpGs")
+        indexlist <- list(indexgene,
+                          indexpos,
+                          indexCGI,
+                          indexCTCF,
+                          indexEZH2,
+                          indexchromstateM,
+                          indexchromstateF,
+                          indexstats)
+        indextot <- Reduce(intersect,indexlist)
+        
+        pull(meta_res_robust[indextot,"CpG"])
+        
+        #})
     })
-    
+
+    #Update list of CpGs
     observeEvent(possible_cpgs(),
         {
         updateSelectizeInput(session,
@@ -396,7 +540,59 @@ server <- function(input, output, session) {
                              server = TRUE)
         })
     
+    #Get the select/unselect all for CGI & chromatin states
+    observe({
+        if (input$selectall_CGI > 0) {
+            if (input$selectall_CGI %% 2 == 0){
+                updateCheckboxGroupInput(session=session, 
+                                         inputId="CGI",
+                                         choices = c("Island","Shore","Shelf","Open sea"),
+                                         selected = c("Island","Shore","Shelf","Open sea"))
+                
+            } else {
+                updateCheckboxGroupInput(session=session, 
+                                         inputId="CGI",
+                                         choices = c("Island","Shore","Shelf","Open sea"),
+                                         selected = c())
+                
+            }}
+    })
+    
+    observe({
+        if (input$selectall_chromstate_M > 0) {
+            if (input$selectall_chromstate_M %% 2 == 0){
+                updateCheckboxGroupInput(session=session, 
+                                         inputId="chrom_state_M",
+                                         choices = chromHMM$DESCRIPTION,
+                                         selected = chromHMM$DESCRIPTION)
+                
+            } else {
+                updateCheckboxGroupInput(session=session, 
+                                         inputId="chrom_state_M",
+                                         choices = chromHMM$DESCRIPTION,
+                                         selected = c())
+                
+            }}
+    })
 
+    
+    observe({
+        if (input$selectall_chromstate_F > 0) {
+            if (input$selectall_chromstate_F %% 2 == 0){
+                updateCheckboxGroupInput(session=session, 
+                                         inputId="chrom_state_F",
+                                         choices = chromHMM$DESCRIPTION,
+                                         selected = chromHMM$DESCRIPTION)
+                
+            } else {
+                updateCheckboxGroupInput(session=session, 
+                                         inputId="chrom_state_F",
+                                         choices = chromHMM$DESCRIPTION,
+                                         selected = c())
+                
+            }}
+    })
+    
     #Render the forestplot in the right tab
     output$forestPlot <- renderPlot({
         
@@ -656,23 +852,60 @@ server <- function(input, output, session) {
         }
     )
     
+    #Create action button within DMR table
+    values <- reactiveValues(df = NULL)
+    
+    values$df <- tibble(
+        DMRs[,1:4],
+        CpGs = shinyInput(actionButton, nrow(DMRs), 'button_', label = "Show CpGs in DMR",
+                             onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' ),
+        DMRs[,5:ncol(DMRs)]
+    )
+    
     #Summary tables
     output$summarytable <- DT::renderDataTable({
-        DT::datatable(L_summarytables[[input$tabletype]],
+        if (input$tabletype=="DMRs")
+        {
+            DT::datatable(isolate(values$df),
+                          extensions = 'Buttons',
+                          options = list(
+                              dom = 'lBtip',
+                              lengthMenu = c(10, 25, 50, nrow(DMRs)),
+                              buttons = list(
+                                  list(extend = 'csv', filename = "DMRs"),
+                                  list(extend = 'excel', filename = "DMRs"))
+                          ),
+                          rownames = FALSE,
+                          escape = FALSE,
+                          selection = 'none',
+                          filter = 'top')  
+        }
+        else
+        {
+                  DT::datatable(L_summarytables[[input$tabletype]],
                       extensions = 'Buttons',
                       options = list(
                           dom = 'lBtip',
                           lengthMenu = c(10, 25, 50, nrow(L_summarytables[[input$tabletype]])),
-                          buttons = c('copy', 'csv', 'excel')
+                          buttons = list(
+                              list(extend = 'csv', filename = input$tabletype),
+                              list(extend = 'excel', filename = input$tabletype))
                       ),
                       rownames = FALSE,
-                      filter = 'top')
+                      filter = 'top')  
+        }
     })
     
- 
+    #Do the pop up window
+    observeEvent(input$select_button, {
+        selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
+        subsetted <- CpGs_in_DMRs[[selectedRow]]
+        subsetModal(session, CpGs = subsetted, size = "m")
+    })
+    
     output$mRNAprot <- renderPlotly({
     ggplotly(mRNA_prot_graph,
-             tooltip = c("group", "colour"))
+             tooltip = c("group"))
     })
 }
 
