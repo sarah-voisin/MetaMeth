@@ -133,10 +133,11 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                         fluidRow(
                             column(7,
                           tags$div(
-                              "Last update: 28/09/2020",tags$br(),
+                              "Last update: 29/09/2020",tags$br(),
                               tags$h4("Welcome to MetaMeth!"),
                               tags$p(style="text-align: justify;",
-                                     "This website allows you to visualise the results of the DNA methylation EWAS meta-analysis of age in human skeletal muscle conducted by Voisin et al."),
+                                     "This website allows you to visualise the results of the",tags$a(href="https://www.biorxiv.org/content/10.1101/2020.09.28.315838v1","DNA methylation EWAS meta-analysis of age in human skeletal muscle conducted by Voisin et al.")
+                                     ),
                               tags$br(),tags$h4("How it works"),
                               tags$ul(
                                   tags$li(
@@ -169,7 +170,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                        icon = icon("quote-right"),
                                        style="color: #fff; background-color: #32cd32; border-color: #32cd32",
                                        width = "100px",
-                                       onclick ="window.open(`https://pubmed.ncbi.nlm.nih.gov/32067420/`, '_blank')"),
+                                       onclick ="window.open(`https://www.biorxiv.org/content/10.1101/2020.09.28.315838v1/`, '_blank')"),
                           a(actionButton("contact",
                                          label = "Contact",
                                          icon = icon("envelope"),
@@ -405,7 +406,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                    tags$div(
                                        tags$h4("How the graph works"),
                                        tags$p(style="text-align: justify;",
-                                              "This is a scatterplot showing the change in mRNA (x-axis) and protein (y-axis) for the 71 genes altered at all three omics levels. The epigenomic analysis was conducted by",tags$a(href="https://onlinelibrary.wiley.com/doi/full/10.1002/jcsm.12556","Voisin et al. (2020)"), ", the transcriptomic analysis was conducted by", tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","Su et al. (2015)"),"and the proteomics analysis was conducted by",tags$a(href="https://elifesciences.org/articles/49874","Ubaida-Mohien et al. (2019)."), "Each gene was colored according to the number of DMRs annotated to it, from 1-3 DMRs for most genes all the way up to 12 DMRs. Naturally, longer genes (e.g.",tags$em("NXN, ABLIM2)"),"have a greater propensity to have more DMRs given their high numbers of CpGs.")
+                                              "This is a scatterplot showing the change in mRNA (x-axis) and protein (y-axis) for the 71 genes altered at all three omics levels. The epigenomic analysis was conducted by",tags$a(href="https://www.biorxiv.org/content/10.1101/2020.09.28.315838v1","Voisin et al. (2020)"), ", the transcriptomic analysis was conducted by", tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","Su et al. (2015)"),"and the proteomics analysis was conducted by",tags$a(href="https://elifesciences.org/articles/49874","Ubaida-Mohien et al. (2019)."), "Each gene was colored according to the number of DMRs annotated to it, from 1-3 DMRs for most genes all the way up to 12 DMRs. Naturally, longer genes (e.g.",tags$em("NXN, ABLIM2)"),"have a greater propensity to have more DMRs given their high numbers of CpGs.")
                                    )
                                        
                             )
