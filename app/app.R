@@ -9,7 +9,7 @@ library(pals)
 library(plotly)
 
 #Load all results
-meta_res_robust <- read_tsv("./input_data/MetaAnalysis.txt")
+meta_res_robust <- read_tsv("./input_data/MetaAnalysis_new.txt")
 meta_res_robust <- meta_res_robust %>%
     mutate_at(c("Chromosome",
                 "CpG island position",
@@ -23,14 +23,14 @@ possible_genes <- unique(unlist(strsplit(meta_res_robust$`Annotated gene(s)`,spl
 possible_genes = possible_genes[!is.na(possible_genes)]
 
 #Load meta-analysis list by CpG
-L <- readRDS("./input_data/ForestplotList.rds")
+L <- readRDS("./input_data/ForestplotList_new.rds")
 
 #Obtain DMPs
 DMPs <- meta_res_robust %>%
     filter(FDR < 0.005)
 
 #Load DMRs
-DMRs <- readRDS("./input_data/DMRs.rds")
+DMRs <- readRDS("./input_data/DMRs_new.rds")
 #List of CpGs in DMRs
 CpGs_in_DMRs <- DMRs$`CpGs in DMR`
 DMRs <- DMRs %>%
@@ -92,7 +92,7 @@ mytheme_classic <- function (base_size = 11, base_family = "", base_line_size = 
 }
 
 #Load correspondence mRNA protein
-mRNA_prot <- read_tsv("./input_data/mRNA_prot.txt")
+mRNA_prot <- read_tsv("./input_data/mRNA_prot_new.txt")
 mRNA_prot_graph <- ggplot(data = mRNA_prot,
                           mapping = aes(x = `Change in mRNA level per year of age (Su et al. 2015)`,
                                         y = `Change in protein level per year of age (Ubaida-Mohien et al. 2019)`,
@@ -133,7 +133,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                         fluidRow(
                             column(7,
                           tags$div(
-                              "Last update: 29/09/2020",tags$br(),
+                              "Last update: 17/03/2021",tags$br(),
                               tags$h4("Welcome to MetaMeth!"),
                               tags$p(style="text-align: justify;",
                                      "This website allows you to visualise the results of the",tags$a(href="https://www.biorxiv.org/content/10.1101/2020.09.28.315838v1","DNA methylation EWAS meta-analysis of age in human skeletal muscle conducted by Voisin et al.")
@@ -300,17 +300,17 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                             #Min effect size
                                             numericInput(inputId = "minES",
                                                          label = "Min",
-                                                         value = -0.4,
-                                                         min = -0.4,
-                                                         max = 0.4)
+                                                         value = -0.5,
+                                                         min = -0.5,
+                                                         max = 0.5)
                                             ),
                                      column(5,
                                             #Max effect size
                                             numericInput(inputId = "maxES",
                                                          label = "Max",
-                                                         value = 0.4,
-                                                         min = -0.4,
-                                                         max = 0.4)
+                                                         value = 0.5,
+                                                         min = -0.5,
+                                                         max = 0.5)
                                      )
                             ),
                             h4("Significance"),
@@ -406,7 +406,7 @@ ui <- navbarPage(theme = shinytheme("flatly"),
                                    tags$div(
                                        tags$h4("How the graph works"),
                                        tags$p(style="text-align: justify;",
-                                              "This is a scatterplot showing the change in mRNA (x-axis) and protein (y-axis) for the 71 genes altered at all three omics levels. The epigenomic analysis was conducted by",tags$a(href="https://www.biorxiv.org/content/10.1101/2020.09.28.315838v1","Voisin et al. (2020)"), ", the transcriptomic analysis was conducted by", tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","Su et al. (2015)"),"and the proteomics analysis was conducted by",tags$a(href="https://elifesciences.org/articles/49874","Ubaida-Mohien et al. (2019)."), "Each gene was colored according to the number of DMRs annotated to it, from 1-3 DMRs for most genes all the way up to 12 DMRs. Naturally, longer genes (e.g.",tags$em("NXN, ABLIM2)"),"have a greater propensity to have more DMRs given their high numbers of CpGs.")
+                                              "This is a scatterplot showing the change in mRNA (x-axis) and protein (y-axis) for the 57 genes altered at all three omics levels. The epigenomic analysis was conducted by",tags$a(href="https://www.biorxiv.org/content/10.1101/2020.09.28.315838v1","Voisin et al. (2020)"), ", the transcriptomic analysis was conducted by", tags$a(href="https://skeletalmusclejournal.biomedcentral.com/articles/10.1186/s13395-015-0059-1","Su et al. (2015)"),"and the proteomics analysis was conducted by",tags$a(href="https://elifesciences.org/articles/49874","Ubaida-Mohien et al. (2019)."), "Each gene was colored according to the number of DMRs annotated to it, from 1-3 DMRs for most genes all the way up to 9 DMRs. Naturally, longer genes (e.g.",tags$em("NXN, ABLIM2)"),"have a greater propensity to have more DMRs given their high numbers of CpGs.")
                                    )
                                        
                             )
@@ -506,8 +506,8 @@ server <- function(input, output, session) {
         
         #Filter by Effect Size, p-value & FDR
         #incProgress(1/9, detail ="Filtering by statistics")
-        indexstats <- which(meta_res_robust$`Effect size beta`>input$minES&
-                             meta_res_robust$`Effect size beta`<input$maxES&
+        indexstats <- which(meta_res_robust$`Effect size`>input$minES&
+                             meta_res_robust$`Effect size`<input$maxES&
                              meta_res_robust$`P-value`<input$pval&
                              meta_res_robust$FDR<input$FDR&
                                 meta_res_robust$`Heterogeneity index (I2)`<input$I2&
@@ -644,7 +644,7 @@ server <- function(input, output, session) {
             scale_size_manual(values=c(1.5,2))
         plot3<-plot2+
             xlab("Study")+
-            ylab("M-value change per year of age")+
+            ylab("% DNAm change per year of age")+
             scale_colour_manual(values=c("gray63","black"))+
             theme(legend.position="none",
                   axis.title.y=element_blank(),

@@ -1,0 +1,12 @@
+name: MetaMeth
+title: MetaMeth
+username:
+account: sarah-voisin
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2695334
+bundleId: 4356698
+url: https://sarah-voisin.shinyapps.io/MetaMeth/
+when: 1615958901.03758
+asMultiple: FALSE
+asStatic: FALSE
